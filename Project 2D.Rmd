@@ -1,0 +1,228 @@
+---
+title: "BIMM 143 WI22 Project 2D: RAS Isoforms in Urothelial Carcinoma Cells - Jeanessa Mendoza"
+output: html_notebook
+---
+
+# Introduction
+
+Scientific Question: Are there differing mutations in oncogenic Ras isoform genes, specifically neuroblastoma RAS viral oncogene homolog, Harvey rat sarcoma viral oncogene homolog, and Kirsten rat sarcoma viral oncogene homolog, within urothelial carcinomas and are these mutations a sufficient enough biomarker to characterize this type of cancer?
+
+Ras is an important protein to the cell cycle. As a proto-oncogene, it cycles through an inactive GDP-bound state and an active GTP-bound state and in this way can send growth signals and affect downstream cell proliferation pathways (Chen 2019). When mutated, Ras becomes oncogenic and will remain in its active GTP-bound state, promoting cell growth via downstream pathways (Moore 2020). For the Ras protein, different isoforms exist including  neuroblastoma RAS viral oncogene homolog (NRAS), Harvey rat sarcoma viral oncogene homolog (HRAS), and Kirsten rat sarcoma viral oncogene homolog (KRAS). Amino acid residues 12, 13, and 61 are commonly mutated in the exons of these isoforms. Previous studies have shown that these isoform specific mutations can vary in different types of cancers (Tripathi 2020) and that they can be preferentially mutated for specific tumors (Castellano 2011). The question here is investigating if the different Ras isoform mutations are present in urothelial carcinoma?  If so, can these mutations be analyzed through differential gene expression analysis and be used as a way to characterize the profile of urothelial carcinomas. 
+
+Scientific Hypothesis: If urothelial carcinomas contain differing amounts of oncogenic Ras isoforms NRAS, HRAS, and KRAS expression, then these mutations could be used as biomarkers to classify this type of cancer.
+
+Here, a multiple sequence alignment is performed using data from the NCBI database to help me compare the three isoforms of Ras proto-oncogenes. With this, we can see where they differ in their amino acid sequences since my hypothesis is assuming that their differences could have some influence on the urothelial carcinomas. To further investigate this, a sequence logo can be done to see the commonality in amino acid sequence between the Ras isoforms.RNA sequencing along with differential expression analysis using a dataset from NCBI(GEO) will be utilized to help see how much of each Ras isoform is being expressed in normal urothelial cells vs. urothelial carcinoma cells. The different expression can also help us figure out if the Ras mutations are relevant. A heat map is used to see differences in gene expression of the different Ras isoforms across the samples. To further visualize the differential expression analysis, a volcano plot is used to view significant genes being expressed within the urothelial carcinoma cells.
+
+---
+
+Castellano E, Santos E. "Functional Specificity of Ras Isoforms: So Similar but So Different." Genes & Cancer. 2011;2(3):216-231. doi:10.1177/1947601911408081
+
+Chen, Shijie et al. “The Function of RAS Mutation in Cancer and Advances in its Drug Research.” Current pharmaceutical design vol. 25,10 (2019): 1105-1114. doi:10.2174/1381612825666190506122228
+
+Moore, Amanda R et al. “RAS-targeted therapies: is the undruggable drugged?.” Nature reviews. Drug discovery vol. 19,8 (2020): 533-552. doi:10.1038/s41573-020-0068-6
+
+Tripathi, Kiran. “Mutational analysis of Ras hotspots in patients with urothelial carcinoma of the bladder.” World Journal of Clinical Oncology. 2020. doi:10.5306/wjco.v11.i8.614
+
+# Packages and descriptions
+
+Here, I will include the necessary packages to perform our analyses, as well as define the packages and their relevance.
+
+1. seqinr: This package contains necessary tools to obtain and analyze DNA and protein sequences in R.
+2. BiocManager: BiocManager allows us to make sure that we can utilize packages from Bioconducter.
+3. Biocstrings: With this, we are able to utilize large DNA, RNA, and amino acid sequences or sets of sequences within R.
+4. msa: The msa package gives us access to ClustalW, ClustalOmega, and MUSCLE which are all multiple sequence alignment algorithms.
+5. seqLogo: Taking a DNA sequence, segLogo helps make a sequence logo plot to see common amino acids.
+6. GEOQuery: This package connects the NCBI Gene Expression Omnibus (GEO) and Bioconductor.
+7. dyplr: We use dyplr to help display rows and columns of interest within a data set.
+8. limma: limma is used for gene expression analysis in microarray data.
+9. pheatmap: This package lets us create clustered heatmaps with parameters.
+10. ggplot2: With ggplot2, we are able to create plots from data frame data.
+
+```{r}
+library(seqinr)
+library(BiocManager)
+library(Biostrings)
+library(msa)
+library(seqLogo)
+library(GEOquery)
+library(dplyr)
+library(limma)
+library(pheatmap)
+library(ggplot2)
+```
+# Performing Bioinformatics Analysis
+
+## Multiple Sequence Alignment and Sequence Logo
+
+A multiple sequence alignment is an alignment of three or more sequences to see conserved regions and matches between them. Here, we use MUSCLE in particular which gives a higher score value to the better aligned parts. 
+
+A sequence logo could be done to further see common amino acids in the sequence for both non-mutated sites and mutated sites. The common acmino acids correspong to how big the letters are in the visual. Highly mutated areas could also be investigated further.
+
+The code down below is used to read in NRAS, HRAS, and KRAS proto-oncogene DNA nucleotides as FASTA files so that we can see the three different Ras isoform gene sequences that we will be working with. These three DNA FASTA files came from the NCBI database.
+
+```{r}
+#NRAS, HRAS, and KRAS are all list and global variables.
+NRAS <- read.fasta(file="NRAS proto-oncogene.fasta")
+NRAS
+
+HRAS <- read.fasta(file="HRAS proto-oncogene.fasta")
+HRAS
+
+KRAS <- read.fasta(file="NRAS proto-oncogene.fasta")
+KRAS
+```
+```{r}
+#NRAS_unaligned, HRAS_unaligned, and KRAS_unaligned are all S4 and global variables.
+NRAS_unaligned <- readAAStringSet("NRAS proto-oncogene.fasta")
+NRAS_unaligned
+
+HRAS_unaligned <- readAAStringSet("HRAS proto-oncogene.fasta")
+HRAS_unaligned
+
+KRAS_unaligned <- readAAStringSet("KRAS proto-oncogene.fasta")
+KRAS_unaligned
+
+#Assign the three sequences to one variable to perform a multiple sequence alignment later
+
+Ras_isoforms_unaligned <- readAAStringSet(c("NRAS proto-oncogene.fasta","HRAS proto-oncogene.fasta","KRAS proto-oncogene.fasta"))
+Ras_isoforms_unaligned
+```
+
+In the next chunks of code, I will be performing a multiple sequence alignment to compare the three isoforms, NRAS, HRAS, and KRAS, to see where they differ since my hypothesis is assuming that their differences have some influence on urothelial carcinomas.
+
+```{r}
+#Perform and print the multiple sequence alignment
+system.file("tex", "texshade.sty", package="msa")
+Ras_isoform_MSA <- msa(Ras_isoforms_unaligned, method="Muscle", cluster="default", gapOpening="default", gapExtension="default", maxiters="default", substitutionMatrix = "default", type="protein")
+print(Ras_isoform_MSA, show = "complete")
+```
+
+```{r}
+msaPrettyPrint(Ras_isoforms_unaligned, y, output=c("pdf", "tex", "dvi", "asis"), subset=NULL, file=NULL, alFile=NULL, askForOverwrite=TRUE,  psFonts=FALSE, code=NA, paperWidth=11, paperHeight=8.5, margins=c(0.1, 0.3), shadingMode=c("identical", "similar", "functional"), shadingModeArg=NA, shadingColors=c("blues", "reds", "greens", "grays", "black"), showConsensus=c("bottom", "top", "none"), consensusColors=c("ColdHot", "HotCold", "BlueRed", "RedBlue", "GreenRed", "RedGreen", "Gray"), consensusThreshold=50, showLogo=c("top", "bottom", "none"), logoColors=c("chemical", "rasmol", "hydropathy", "structure", "standard area", "accessible area"), showLogoScale=c("none", "leftright", "left", "right"), showNames=c("left", "right", "none"), showNumbering=c("right", "left", "none"), showLegend=TRUE, furtherCode=NA, verbose=FALSE)
+```
+
+
+## RNA-sequencing - Differential Gene Expression Analysis
+
+Differential gene expression analysis utilizes read count data to quantify expression levels between groups. Here, we use RNA sequencing to analyze differential gene expression for the Ras isoforms, NRAS, KRAS, and HRAS in normal urothelial cells vs. urothelial carcinoma cells. This method would help me see how much of each isoform is being expressed in urothelial cancer cells. Their expression can help me figure out if Ras mutations are relevant in this type of cancer. The code below is used to fetch the samples we need in the query dataset needed from NCBI (GEO). In this case, we will utilize three normal urothelial cell samples and three urothelial carcinoma cell samples.
+
+```{r}
+#https://sbc.shef.ac.uk/geo_tutorial/tutorial.nb.html
+#NCBI GEO query dataset: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE19915
+
+#Import the data. This is a global variable.
+my_id <- "GSE19915"
+gse <- getGEO(my_id)
+
+#Check how many platforms used
+length(gse)
+gse <- gse[[3]]
+gse
+
+pData(gse) #print the sample information
+fData(gse) #print the gene annotation
+exprs(gse)[1,] #print the expression data
+```
+```{r}
+#check the normalisation and scales used
+pData(gse)$data_processing[1]
+
+#check expression value
+summary(exprs(gse))
+#data is already on a log2 scale because it does not go beyond 16
+
+ boxplot(exprs(gse), outline=F)
+```
+```{r}
+#inspect clinical variables
+sampleInfo <-pData(gse)
+head(sampleInfo)
+
+table(sampleInfo$characteristics_ch1)
+```
+```{r}
+sampleInfo <- select(sampleInfo, source_name_ch1, characteristics_ch1)
+sampleInfo <- rename(sampleInfo, sample_group = source_name_ch1, cell_type = characteristics_ch1)
+
+head(sampleInfo)
+dim(sampleInfo)
+sampleInfo$cell_type
+```
+
+## Visualizing and Plotting the Results: Heatmap and Volcano Plot
+
+A heatmap and volcano plot are both used to visualize differential expression. A heatmap helps us see hierarchical clustering and see differences in the expression of the different isoforms we are woking with across the cancer cells. A volcano plot shows statistical significance on one axis and fold change on the other to represent RNA-seq results. 
+
+## Sample Clustering - Heatmap
+
+```{r}
+corMatrix <- cor(exprs(gse), use="c")
+pheatmap(corMatrix)
+```
+## Volcano Plot
+
+```{r}
+design <- model.matrix(~0+sampleInfo$cell_type)
+
+#rename columns
+colnames(design) <- c("Normal", "Other", "Urotherial carcinoma")
+head(design)
+```
+
+
+```{r}
+#calculate median expression level
+cutoff <- median(exprs(gse))
+
+#TRUE or FALSE for whether each gene is "expressed" in each sample
+is_expressed <- exprs(gse) > cutoff
+
+#Identify genes expressed in more than 2 samples
+
+keep <- rowSums(is_expressed) > 3
+
+#check how many genes are removed / retained.
+table(keep)
+
+gse <- gse[keep,]
+```
+```{r}
+#coping with outliers
+#calculate relative array weights
+aw <- arrayWeights(exprs(gse),design)
+aw
+```
+```{r}
+## Fitting the coefficients
+fit <- lmFit(exprs(gse), design,
+             weights = aw)
+
+head(fit$coefficients)
+```
+```{r}
+## Making comparisons between samples, can define multiple contrasts
+contrasts <- makeContrasts(Normal-Other, Normal-Urothelial carcinoma, Other - Urothelial carcinoma, levels - design)
+
+fit2 <- contrasts.fit(fit, contrasts
+fit2 <- eBayes(fit2)
+
+
+topTable(fit2)
+```
+```{r}
+anno <- fData(gse)
+head(anno)
+
+anno <- select(anno,ID,GB_ACC)
+fit2$genes <- anno
+
+topTable(fit2)
+```
+
+# Analyzing the Results
+
+The multiple sequence alignments results show that the three RAS isoforms do vary in their amino acid sequences. If I were able to see the volcano plot, I would be able to determine the statistical significance of the expression of the different genes within the normal urothelial cells vs. the urothelial carcinoma cells, specifically comparing the Ras isoforms. My hypothesis was incorrect in that although there exists differently mutated RAS isoforms in urothelial carcinoma cells, they are not significant enough to be used as a biomarker for future therapeutics.
+
+---
+
+Kompier. FGFR3, HRAS, KRAS, NRAS and PIK3CA Mutations in Bladder Cancer and Their Potential as Biomarkers for Surveillance and Therapy (Links to an external site.) PLos ONE. 2010.
